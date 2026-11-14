@@ -3,7 +3,7 @@
 import asyncio
 from http import HTTPStatus
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from aiohttp import ClientResponse, web
 from aiohttp.test_utils import TestClient
@@ -76,6 +76,37 @@ async def test_fetch_auth_providers(
     assert await resp.json() == {
         "providers": expected,
         "preselect_remember_me": preselect_remember_me,
+    }
+
+
+async def test_fetch_auth_providers_tunnel(
+    hass: HomeAssistant, aiohttp_client: ClientSessionGenerator
+) -> None:
+    """Test tunnel requests never preselect remember me or trusted networks."""
+    client = await async_setup_auth(
+        hass,
+        aiohttp_client,
+        [{"type": "homeassistant"}, {**_TRUSTED_NETWORKS_CONFIG}],
+        custom_ip="192.168.0.1",
+    )
+    tunnel_request = Mock(get=Mock(return_value=True))
+    with (
+        patch(
+            "homeassistant.components.auth.login_flow.is_tunnel_request",
+            tunnel_request,
+        ),
+        patch(
+            "homeassistant.auth.providers.trusted_networks.is_tunnel_request",
+            tunnel_request,
+        ),
+    ):
+        resp = await client.get("/auth/providers")
+    assert resp.status == HTTPStatus.OK
+    assert await resp.json() == {
+        "providers": [
+            {"name": "Home Assistant Local", "type": "homeassistant", "id": None}
+        ],
+        "preselect_remember_me": False,
     }
 
 

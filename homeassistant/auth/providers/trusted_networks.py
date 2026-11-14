@@ -20,7 +20,7 @@ import probatio
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.network import is_cloud_connection
+from homeassistant.helpers.network import is_cloud_connection, is_tunnel_request
 
 from .. import InvalidAuthError
 from ..models import (
@@ -201,6 +201,9 @@ class TrustedNetworksAuthProvider(AuthProvider):
 
         if is_cloud_connection(self.hass):
             raise InvalidAuthError("Can't allow access from Home Assistant Cloud")
+
+        if is_tunnel_request.get():
+            raise InvalidAuthError("Can't allow access over a remote tunnel")
 
     @callback
     @override

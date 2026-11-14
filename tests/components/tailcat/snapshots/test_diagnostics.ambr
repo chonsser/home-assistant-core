@@ -1,0 +1,21 @@
+# serializer version: 1
+# name: test_diagnostics[subentries_data0]
+  dict({
+    'devices': list([
+      dict({
+        'name': 'Phone',
+        'public_key': '**REDACTED**',
+      }),
+    ]),
+    'entry_data': dict({
+      'server_key': '**REDACTED**',
+      'tunnel_port': 18123,
+    }),
+    'server': dict({
+      'allowed_devices': 1,
+      'has_address': True,
+      'port': 18123,
+      'running': True,
+    }),
+  })
+# ---

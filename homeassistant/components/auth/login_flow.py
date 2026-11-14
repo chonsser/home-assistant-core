@@ -94,6 +94,7 @@ from homeassistant.helpers.network import (
     NoURLAvailableError,
     get_url,
     is_cloud_connection,
+    is_tunnel_request,
 )
 from homeassistant.util.network import is_local
 
@@ -214,6 +215,7 @@ class AuthProvidersView(HomeAssistantView):
             )
 
         cloud_connection = is_cloud_connection(hass)
+        tunnel_request = is_tunnel_request.get()
         context = AuthFlowContext(ip_address=remote_address)
 
         providers = [
@@ -226,7 +228,9 @@ class AuthProvidersView(HomeAssistantView):
             if provider.async_can_start_login(context)
         ]
 
-        preselect_remember_me = not cloud_connection and is_local(remote_address)
+        preselect_remember_me = (
+            not cloud_connection and not tunnel_request and is_local(remote_address)
+        )
 
         return self.json(
             {

@@ -1,0 +1,118 @@
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: This integration does not register any service actions.
+  appropriate-polling:
+    status: exempt
+    comment: This integration does not poll.
+  brands: done
+  common-modules: done
+  config-flow-test-coverage: done
+  config-flow: done
+  dependency-transparency:
+    status: exempt
+    comment: |
+      The integration has no Python requirements; it runs the tailcat binary
+      found on the PATH.
+  docs-actions:
+    status: exempt
+    comment: This integration does not register any service actions.
+  docs-conditions:
+    status: exempt
+    comment: This integration does not provide any conditions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  docs-triggers:
+    status: exempt
+    comment: This integration does not provide any triggers.
+  entity-event-setup:
+    status: exempt
+    comment: This integration does not provide entities.
+  entity-unique-id:
+    status: exempt
+    comment: This integration does not provide entities.
+  has-entity-name:
+    status: exempt
+    comment: This integration does not provide entities.
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions:
+    status: exempt
+    comment: This integration does not register any service actions.
+  config-entry-unloading: done
+  docs-configuration-parameters:
+    status: exempt
+    comment: This integration has no options.
+  docs-installation-parameters: todo
+  entity-unavailable:
+    status: exempt
+    comment: This integration does not provide entities.
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates:
+    status: exempt
+    comment: This integration does not provide entity platforms.
+  reauthentication-flow:
+    status: exempt
+    comment: This integration does not authenticate with a service.
+  test-coverage: done
+
+  # Gold
+  devices:
+    status: exempt
+    comment: Paired devices are config subentries, not devices.
+  diagnostics: done
+  discovery-update-info:
+    status: exempt
+    comment: This integration does not use discovery.
+  discovery:
+    status: exempt
+    comment: This integration does not use discovery.
+  docs-data-update: todo
+  docs-examples: todo
+  docs-known-limitations: todo
+  docs-supported-devices: todo
+  docs-supported-functions: todo
+  docs-troubleshooting: todo
+  docs-use-cases: todo
+  dynamic-devices:
+    status: exempt
+    comment: This integration does not provide devices.
+  entity-category:
+    status: exempt
+    comment: This integration does not provide entities.
+  entity-device-class:
+    status: exempt
+    comment: This integration does not provide entities.
+  entity-disabled-by-default:
+    status: exempt
+    comment: This integration does not provide entities.
+  entity-translations:
+    status: exempt
+    comment: This integration does not provide entities.
+  exception-translations: done
+  icon-translations:
+    status: exempt
+    comment: This integration does not provide entities or actions.
+  reconfiguration-flow:
+    status: exempt
+    comment: This integration has no settings to reconfigure.
+  repair-issues: todo
+  stale-devices:
+    status: exempt
+    comment: This integration does not provide devices.
+
+  # Platinum
+  async-dependency:
+    status: exempt
+    comment: This integration has no Python requirements.
+  inject-websession:
+    status: exempt
+    comment: This integration does not make HTTP requests.
+  strict-typing: done

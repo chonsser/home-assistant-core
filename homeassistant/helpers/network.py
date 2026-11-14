@@ -1,6 +1,7 @@
 """Network helpers."""
 
 from contextlib import suppress
+from contextvars import ContextVar
 from ipaddress import ip_address
 import logging
 
@@ -20,6 +21,10 @@ _LOGGER = logging.getLogger(__name__)
 TYPE_URL_INTERNAL = "internal_url"
 TYPE_URL_EXTERNAL = "external_url"
 SUPERVISOR_NETWORK_HOST = "homeassistant"
+
+# Set for requests that reach the HTTP server through a local tunnel process
+# (e.g. Tailcat): they arrive from a loopback address but come from afar.
+is_tunnel_request: ContextVar[bool] = ContextVar("is_tunnel_request", default=False)
 
 
 class NoURLAvailableError(HomeAssistantError):

@@ -761,6 +761,16 @@ async def test_async_user_not_allowed_do_auth(
             == "User is local only"
         )
 
+    # Is tunnel request and local only, even a loopback IP will fail
+    with patch(
+        "homeassistant.components.http.auth_util.is_tunnel_request",
+        Mock(get=Mock(return_value=True)),
+    ):
+        assert (
+            async_user_not_allowed_do_auth(hass, user, Mock(remote="127.0.0.1"))
+            == "User is local only"
+        )
+
 
 async def test_create_user_once(hass: HomeAssistant) -> None:
     """Test that we reuse the user."""

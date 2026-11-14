@@ -830,6 +830,7 @@ FLOWS = {
         "systemmonitor",
         "systemnexa2",
         "tado",
+        "tailcat",
         "tailscale",
         "tailwind",
         "tami4",

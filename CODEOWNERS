@@ -1943,6 +1943,8 @@ AGENTS.md @home-assistant/core
 /tests/components/tado/ @erwindouna
 /homeassistant/components/tag/ @home-assistant/core
 /tests/components/tag/ @home-assistant/core
+/homeassistant/components/tailcat/ @chonsser
+/tests/components/tailcat/ @chonsser
 /homeassistant/components/tailscale/ @frenck
 /tests/components/tailscale/ @frenck
 /homeassistant/components/tailwind/ @frenck

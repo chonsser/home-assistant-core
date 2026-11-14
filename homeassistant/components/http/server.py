@@ -36,7 +36,11 @@ from homeassistant.helpers.http import (
     HomeAssistantView,
     current_request,
 )
-from homeassistant.helpers.network import NoURLAvailableError, get_url
+from homeassistant.helpers.network import (
+    NoURLAvailableError,
+    get_url,
+    is_tunnel_request,
+)
 from homeassistant.setup import async_when_setup
 from homeassistant.util import dt as dt_util, ssl as ssl_util
 from homeassistant.util.json import json_loads
@@ -256,6 +260,26 @@ async def _serve_file(path: str, request: web.Request) -> web.FileResponse:
     return web.FileResponse(path)
 
 
+class _TunnelRequestHandler(RequestHandler):
+    """Request handler for connections accepted by a tunnel listener."""
+
+    __slots__ = ()
+
+    @override
+    def connection_made(self, transport: asyncio.BaseTransport) -> None:
+        """Mark everything served on this connection as a tunnel request.
+
+        The task handling the connection's requests is created here and
+        copies the current context, so the flag applies to all of them and
+        is reset before the event loop continues.
+        """
+        token = is_tunnel_request.set(True)
+        try:
+            super().connection_made(transport)
+        finally:
+            is_tunnel_request.reset(token)
+
+
 class HomeAssistantHTTP:
     """HTTP server for Home Assistant."""
 
@@ -342,6 +366,33 @@ class HomeAssistantHTTP:
         runner = self.runner
         assert runner is not None and runner.server is not None
         return runner.server()
+
+    def _make_tunnel_protocol(self) -> RequestHandler:
+        """Create a protocol instance for a connection to a tunnel listener."""
+        runner = self.runner
+        assert runner is not None and runner.server is not None
+        server = runner.server
+        return _TunnelRequestHandler(
+            server,
+            loop=self.hass.loop,
+            **server._kwargs,  # noqa: SLF001
+        )
+
+    async def async_start_tunnel_listener(self, port: int) -> asyncio.Server:
+        """Serve the app on a loopback port for a local tunnel process.
+
+        Every request served by the listener is flagged as a remote tunnel
+        request, so it is never treated as local even though it arrives from
+        a loopback address. The listener always speaks plain HTTP. Pass port
+        0 to bind a free port. The caller closes the returned server.
+        Raises HomeAssistantError if the HTTP server is not running yet and
+        OSError if the port cannot be bound.
+        """
+        if self.runner is None:
+            raise HomeAssistantError("The HTTP server is not running")
+        return await self.hass.loop.create_server(
+            self._make_tunnel_protocol, "127.0.0.1", port, backlog=128
+        )
 
     async def async_initialize(
         self,

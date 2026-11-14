@@ -14782,6 +14782,19 @@
       "config_flow": true,
       "iot_class": "cloud_polling"
     },
+    "tailcat": {
+      "name": "Tailcat",
+      "integration_type": "service",
+      "categories": [
+        "computers_network.routers_network"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "config_flow": true,
+      "iot_class": "cloud_push",
+      "single_config_entry": true
+    },
     "tailscale": {
       "name": "Tailscale",
       "integration_type": "hub",
