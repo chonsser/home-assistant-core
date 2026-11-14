@@ -1,6 +1,7 @@
 """Network helpers."""
 
 from contextlib import suppress
+from contextvars import ContextVar
 from ipaddress import ip_address
 import logging
 
@@ -20,6 +21,10 @@ _LOGGER = logging.getLogger(__name__)
 TYPE_URL_INTERNAL = "internal_url"
 TYPE_URL_EXTERNAL = "external_url"
 SUPERVISOR_NETWORK_HOST = "homeassistant"
+
+# Set for requests that reach the HTTP server through a local tunnel process
+# (e.g. Tailcat): they arrive from a loopback address but come from afar.
+is_tunnel_request: ContextVar[bool] = ContextVar("is_tunnel_request", default=False)
 
 
 class NoURLAvailableError(HomeAssistantError):
@@ -376,3 +381,13 @@ def is_cloud_connection(hass: HomeAssistant) -> bool:
         return False
 
     return remote.is_cloud_request.get()
+
+
+def is_remote_tunnel_connection(hass: HomeAssistant) -> bool:
+    """Return True if the current connection arrived over a remote tunnel.
+
+    This covers Home Assistant Cloud and local tunnel listeners. The peer
+    address of such a request does not tell where the client really is, so
+    it must never be treated as local.
+    """
+    return is_tunnel_request.get() or is_cloud_connection(hass)

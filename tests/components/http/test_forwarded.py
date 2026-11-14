@@ -597,3 +597,27 @@ async def test_x_forwarded_cloud(
 
     # This request would normally fail because it's invalid, now it works.
     assert resp.status == HTTPStatus.OK
+
+
+async def test_x_forwarded_tunnel(aiohttp_client: ClientSessionGenerator) -> None:
+    """Test forwarding headers are ignored for tunnel requests."""
+
+    async def handler(request: web.Request) -> web.Response:
+        """Return the remote address the request was processed with."""
+        return web.Response(text=request.remote)
+
+    app = web.Application()
+    app.router.add_get("/", handler)
+    async_setup_forwarded(app, True, [ip_network("127.0.0.1")])
+
+    mock_api_client = await aiohttp_client(app)
+
+    with patch(
+        "homeassistant.components.http.forwarded.is_tunnel_request",
+        Mock(get=Mock(return_value=True)),
+    ):
+        resp = await mock_api_client.get("/", headers={X_FORWARDED_FOR: "192.168.1.10"})
+
+    # The spoofed local address from the trusted loopback proxy is ignored
+    assert resp.status == HTTPStatus.OK
+    assert await resp.text() == "127.0.0.1"

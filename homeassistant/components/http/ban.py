@@ -28,6 +28,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.hassio import get_supervisor_ip, is_hassio
 from homeassistant.helpers.http import KEY_HASS, HomeAssistantView
+from homeassistant.helpers.network import is_tunnel_request
 from homeassistant.util import dt as dt_util, yaml as yaml_util
 
 from .const import is_supervisor_unix_socket_request
@@ -81,7 +82,8 @@ async def ban_middleware(
         _LOGGER.error("IP Ban middleware loaded but banned IPs not loaded")
         return await handler(request)
 
-    if ip_bans_lookup := ban_manager.ip_bans_lookup:
+    # A ban of the loopback address must not lock out tunnel clients
+    if (ip_bans_lookup := ban_manager.ip_bans_lookup) and not is_tunnel_request.get():
         # Verify if IP is not banned
         ip_address_ = ip_address(request.remote)  # type: ignore[arg-type]
         if ip_address_ in ip_bans_lookup:
@@ -121,16 +123,24 @@ async def process_wrong_login(request: Request) -> None:
 
     assert request.remote
     remote_addr = ip_address(request.remote)
-    # Before the reverse DNS lookup, so a ban already applies to the next request.
-    banned = await _async_count_wrong_login(request.app, hass, remote_addr)
+    tunnel = is_tunnel_request.get()
+    # Tunnel requests share the tunnel's loopback address, which must not be
+    # banned on their behalf. Before the reverse DNS lookup, so a ban already
+    # applies to the next request.
+    banned = not tunnel and await _async_count_wrong_login(
+        request.app, hass, remote_addr
+    )
 
     remote_host = request.remote
-    # The hostname only feeds the log and notification below
-    with suppress(TimeoutError, OSError, UnicodeError):
-        async with asyncio.timeout(REVERSE_DNS_TIMEOUT):
-            remote_host, _, _ = await hass.async_add_executor_job(
-                gethostbyaddr, request.remote
-            )
+    if tunnel:
+        remote_host = "a remote tunnel"
+    else:
+        # The hostname only feeds the log and notification below
+        with suppress(TimeoutError, OSError, UnicodeError):
+            async with asyncio.timeout(REVERSE_DNS_TIMEOUT):
+                remote_host, _, _ = await hass.async_add_executor_job(
+                    gethostbyaddr, request.remote
+                )
 
     base_msg = (
         "Login attempt or request with invalid authentication from"

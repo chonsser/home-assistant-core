@@ -7,7 +7,7 @@ from aiohttp.web import Request
 from homeassistant.auth.models import User
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.http import current_request
-from homeassistant.helpers.network import is_cloud_connection
+from homeassistant.helpers.network import is_remote_tunnel_connection
 from homeassistant.util.network import is_local
 
 
@@ -29,7 +29,7 @@ def async_user_not_allowed_do_auth(
     if not request:
         return "No request available to validate local access"
 
-    if is_cloud_connection(hass):
+    if is_remote_tunnel_connection(hass):
         return "User is local only"
 
     try:

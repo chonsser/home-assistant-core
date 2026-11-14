@@ -270,6 +270,17 @@ async def test_webhook_local_only(hass: HomeAssistant, mock_client) -> None:
     assert resp.status == HTTPStatus.OK
     assert len(hooks) == 1
 
+    # Request over a local tunnel listener
+    with patch(
+        "homeassistant.helpers.network.is_tunnel_request",
+        Mock(get=Mock(return_value=True)),
+    ):
+        resp = await mock_client.post(f"/api/webhook/{webhook_id}", json={"data": True})
+
+    # No hook received
+    assert resp.status == HTTPStatus.OK
+    assert len(hooks) == 1
+
 
 @pytest.mark.parametrize(
     ("remote", "expected_calls"),

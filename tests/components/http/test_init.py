@@ -56,7 +56,7 @@ from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.http import KEY_HASS
-from homeassistant.helpers.network import NoURLAvailableError
+from homeassistant.helpers.network import NoURLAvailableError, is_tunnel_request
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from homeassistant.util.ssl import SSLProfile, server_context
@@ -3694,3 +3694,61 @@ async def test_websocket_configure_without_trusted_proxies(
     )
     response = await ws_client.receive_json()
     assert response["success"]
+
+
+class TunnelFlagView(http.HomeAssistantView):
+    """View reporting whether the request was flagged as a tunnel request."""
+
+    url = "/tunnel_flag"
+    name = "tunnel_flag"
+    requires_auth = False
+
+    async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        """Return the tunnel flag and the peer address."""
+        return self.json({"tunnel": is_tunnel_request.get(), "remote": request.remote})
+
+
+async def test_tunnel_listener_flags_requests(hass: HomeAssistant) -> None:
+    """Test requests over a tunnel listener are flagged, others are not."""
+    assert await async_setup_component(hass, http.DOMAIN, {})
+    await hass.async_start()
+    assert hass.http._server is not None
+    port = hass.http._server.sockets[0].getsockname()[1]
+    hass.http.register_view(TunnelFlagView)
+    tunnel_server = await hass.http.async_start_tunnel_listener(0)
+    tunnel_port = tunnel_server.sockets[0].getsockname()[1]
+    assert tunnel_server.sockets[0].getsockname()[0] == "127.0.0.1"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            # Twice per listener to cover keep-alive connections
+            for _ in range(2):
+                async with session.get(
+                    f"http://127.0.0.1:{tunnel_port}/tunnel_flag"
+                ) as resp:
+                    assert resp.status == HTTPStatus.OK
+                    assert await resp.json() == {
+                        "tunnel": True,
+                        "remote": "127.0.0.1",
+                    }
+                async with session.get(f"http://127.0.0.1:{port}/tunnel_flag") as resp:
+                    assert resp.status == HTTPStatus.OK
+                    assert await resp.json() == {
+                        "tunnel": False,
+                        "remote": "127.0.0.1",
+                    }
+    finally:
+        tunnel_server.close()
+        await hass.async_stop()
+
+    assert is_tunnel_request.get() is False
+
+
+async def test_tunnel_listener_requires_running_server(hass: HomeAssistant) -> None:
+    """Test the tunnel listener cannot start before the HTTP server runs."""
+    assert await async_setup_component(hass, http.DOMAIN, {})
+    with (
+        patch.object(hass.http, "runner", None),
+        pytest.raises(HomeAssistantError, match="not running"),
+    ):
+        await hass.http.async_start_tunnel_listener(0)

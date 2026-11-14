@@ -699,3 +699,63 @@ async def test_unix_socket_skips_ban_check(
     ):
         resp = await client.get("/")
     assert resp.status == HTTPStatus.NOT_FOUND
+
+
+async def test_tunnel_request_never_bans_loopback(
+    hass: HomeAssistant,
+    aiohttp_client: ClientSessionGenerator,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test failed logins over a tunnel are reported but never ban loopback."""
+    app = web.Application()
+    app[KEY_HASS] = hass
+
+    async def unauth_handler(request: web.Request) -> NoReturn:
+        """Return a mock web response."""
+        raise HTTPUnauthorized
+
+    app.router.add_get("/example", unauth_handler)
+    setup_bans(hass, app, 1)
+    mock_real_ip(app)("127.0.0.1")
+
+    with patch(
+        "homeassistant.components.http.ban.load_yaml_config_file",
+        return_value={"127.0.0.1": {"banned_at": "2016-11-16T19:20:03"}},
+    ):
+        client = await aiohttp_client(app)
+
+    manager = app[KEY_BAN_MANAGER]
+    m_open = mock_open()
+
+    with (
+        patch(
+            "homeassistant.components.http.ban.is_tunnel_request",
+            Mock(get=Mock(return_value=True)),
+        ),
+        patch("homeassistant.components.http.ban.open", m_open, create=True),
+        patch("homeassistant.components.http.ban.gethostbyaddr") as mock_lookup,
+    ):
+        # A banned loopback address does not lock out tunnel clients
+        for _ in range(2):
+            resp = await client.get("/example")
+            assert resp.status == HTTPStatus.UNAUTHORIZED
+
+    assert m_open.call_count == 0
+    mock_lookup.assert_not_called()
+    assert app[KEY_FAILED_LOGIN_ATTEMPTS] == {}
+    assert list(manager.ip_bans_lookup) == [ip_address("127.0.0.1")]
+
+    notifications = async_get_persistent_notifications(hass)
+    assert set(notifications) == {"http-login"}
+    assert notifications["http-login"]["message"] == (
+        "Login attempt or request with invalid authentication"
+        " from a remote tunnel (127.0.0.1). See the log for details."
+    )
+    assert (
+        "Login attempt or request with invalid authentication"
+        " from a remote tunnel (127.0.0.1). Requested URL: '/example'." in caplog.text
+    )
+
+    # Without the tunnel the banned loopback address is still rejected
+    resp = await client.get("/example")
+    assert resp.status == HTTPStatus.FORBIDDEN

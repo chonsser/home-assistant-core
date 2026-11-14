@@ -9,6 +9,7 @@ from aiohttp.web import Application, HTTPBadRequest, Request, StreamResponse, mi
 from hass_nabucasa import remote
 
 from homeassistant.core import callback
+from homeassistant.helpers.network import is_tunnel_request
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -75,8 +76,8 @@ def async_setup_forwarded(
         request: Request, handler: Callable[[Request], Awaitable[StreamResponse]]
     ) -> StreamResponse:
         """Process forwarded data by a reverse proxy."""
-        # Skip requests from Remote UI
-        if remote.is_cloud_request.get():
+        # Skip requests from Remote UI and local tunnel listeners
+        if remote.is_cloud_request.get() or is_tunnel_request.get():
             return await handler(request)
 
         # Handle X-Forwarded-For

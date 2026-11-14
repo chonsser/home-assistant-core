@@ -14,6 +14,7 @@ from homeassistant.auth.providers import trusted_networks as tn_auth
 from homeassistant.components.http import CONF_TRUSTED_PROXIES, CONF_USE_X_FORWARDED_FOR
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.network import is_tunnel_request
 from homeassistant.setup import async_setup_component
 
 
@@ -267,6 +268,23 @@ async def test_validate_access_cloud(
     remote.is_cloud_request.set(True)
     with pytest.raises(auth.InvalidAuthError):
         provider.async_validate_access(ip_address("192.168.128.2"))
+
+
+async def test_validate_access_tunnel(
+    provider: tn_auth.TrustedNetworksAuthProvider,
+) -> None:
+    """Test trusted networks are rejected for tunnel requests."""
+    provider.async_validate_access(ip_address("192.168.0.1"))
+
+    token = is_tunnel_request.set(True)
+    try:
+        with pytest.raises(auth.InvalidAuthError, match="remote tunnel"):
+            provider.async_validate_access(ip_address("192.168.0.1"))
+        assert not provider.async_can_start_login(
+            AuthFlowContext(ip_address=ip_address("192.168.0.1"))
+        )
+    finally:
+        is_tunnel_request.reset(token)
 
 
 async def test_validate_refresh_token(
