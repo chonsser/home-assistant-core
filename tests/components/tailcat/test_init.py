@@ -9,7 +9,7 @@ import pytest
 from pytest_homeassistant.common import MockConfigEntry
 
 from homeassistant.components.tailcat.const import CONF_TUNNEL_PORT
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -267,8 +267,11 @@ async def test_watchdog_skips_restart_after_allowlist_update(
         await hass.async_block_till_done()
         # Restarted by a pairing while the watchdog waits for its delay
         mock_serve.exit_immediately = False
-        init_integration.runtime_data.pending_keys.add(PAIRED_PUBLIC_KEY)
-        await server.async_update_allowed_keys()
+        hass.config_entries.async_add_subentry(
+            init_integration, ConfigSubentry(**PAIRED_DEVICE)
+        )
+        await hass.async_block_till_done()
+        assert server.allowed_keys == {PAIRED_PUBLIC_KEY}
         processes = len(mock_serve.processes)
         await asyncio.sleep(0.1)
     assert len(mock_serve.processes) == processes
@@ -283,8 +286,10 @@ async def test_update_after_stop(
     """Test allowlist changes after stopping do not start the server."""
     server = init_integration.runtime_data.server
     await server.async_stop()
-    init_integration.runtime_data.pending_keys.add(PAIRED_PUBLIC_KEY)
-    await server.async_update_allowed_keys()
+    hass.config_entries.async_add_subentry(
+        init_integration, ConfigSubentry(**PAIRED_DEVICE)
+    )
+    await hass.async_block_till_done()
     assert server.allowed_keys == {PAIRED_PUBLIC_KEY}
     assert len(mock_serve.processes) == 1
     assert not server.is_running

@@ -27,7 +27,7 @@
           "data": {
             "qr_code": "Pairing code"
           },
-          "description": "Scan this code with the Home Assistant app on {name}, then select **Submit** to keep the device paired. Closing this dialog without submitting cancels the pairing.\n\nIf you cannot scan the code, open this link on the device. Keep it secret, it grants access to Home Assistant:\n\n`{pairing_url}`",
+          "description": "Scan this code with the Home Assistant app on {name}, then select **Submit** to allow the device. It connects a few seconds after you submit. Other paired devices briefly reconnect, as the tunnel restarts once. Closing this dialog without submitting cancels the pairing.\n\nIf you cannot scan the code, open this link on the device. Keep it secret, it grants access to Home Assistant:\n\n`{pairing_url}`",
           "title": "Scan the pairing code"
         },
         "user": {

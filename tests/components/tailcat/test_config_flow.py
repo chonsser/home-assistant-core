@@ -1,6 +1,6 @@
 """Tests for the Tailcat config flow."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pytest_homeassistant.common import MockConfigEntry
@@ -169,10 +169,11 @@ async def test_pair_device(
     }
     qr_selector = result["data_schema"].schema["qr_code"]
     assert qr_selector.config["data"] == PAIRING_URL
-    # The device may connect while the code is shown
-    assert len(mock_serve.processes) == 2
-    assert mock_serve.processes[0].terminated
-    assert mock_serve.allow == ",".join(sorted([CLIENT_PUBLIC_KEY, PAIRED_PUBLIC_KEY]))
+    # Showing the code must not restart the tunnel, which may carry this flow
+    assert len(mock_serve.processes) == 1
+    assert not mock_serve.process.terminated
+    assert mock_serve.allow == PAIRED_PUBLIC_KEY
+    assert init_integration.runtime_data.server.allowed_keys == {PAIRED_PUBLIC_KEY}
 
     result = await hass.config_entries.subentries.async_configure(result["flow_id"], {})
     await hass.async_block_till_done()
@@ -191,42 +192,30 @@ async def test_pair_device(
         CONF_PUBLIC_KEY: CLIENT_PUBLIC_KEY,
     }
     assert CLIENT_PRIVATE_KEY not in str(init_integration.as_dict())
-    # The paired device stays allowed without another restart
+    # Submitting allows the device with a single restart
     assert len(mock_serve.processes) == 2
-    assert init_integration.runtime_data.pending_keys == set()
+    assert mock_serve.processes[0].terminated
+    assert mock_serve.allow == ",".join(sorted([CLIENT_PUBLIC_KEY, PAIRED_PUBLIC_KEY]))
+    assert init_integration.runtime_data.server.allowed_keys == {
+        CLIENT_PUBLIC_KEY,
+        PAIRED_PUBLIC_KEY,
+    }
 
 
 @pytest.mark.usefixtures("mock_genkey")
 async def test_pair_device_aborted(
     hass: HomeAssistant, init_integration: MockConfigEntry, mock_serve: ServeMock
 ) -> None:
-    """Test an abandoned pairing stops allowing the device."""
+    """Test an abandoned pairing never allows the device."""
     result = await _start_pairing(hass, init_integration)
     assert result["step_id"] == "pair"
-    assert mock_serve.allow == CLIENT_PUBLIC_KEY
 
     hass.config_entries.subentries.async_abort(result["flow_id"])
     await hass.async_block_till_done()
 
-    assert mock_serve.allow == "none"
-    assert len(mock_serve.processes) == 3
     assert init_integration.subentries == {}
-    assert init_integration.runtime_data.pending_keys == set()
-
-
-@pytest.mark.usefixtures("mock_genkey")
-async def test_pair_device_aborted_after_unload(
-    hass: HomeAssistant, init_integration: MockConfigEntry, mock_serve: ServeMock
-) -> None:
-    """Test aborting a pairing after the entry was unloaded."""
-    result = await _start_pairing(hass, init_integration)
-    await hass.config_entries.async_unload(init_integration.entry_id)
-    processes = len(mock_serve.processes)
-
-    hass.config_entries.subentries.async_abort(result["flow_id"])
-    await hass.async_block_till_done()
-
-    assert len(mock_serve.processes) == processes
+    assert len(mock_serve.processes) == 1
+    assert mock_serve.allow == "none"
 
 
 async def test_pair_device_not_loaded(
@@ -267,39 +256,15 @@ async def test_pair_device_genkey_failed(
     assert len(mock_serve.processes) == 1
 
 
-@pytest.mark.usefixtures("mock_genkey")
-async def test_pair_device_server_restart_failed(
-    hass: HomeAssistant,
-    init_integration: MockConfigEntry,
-    mock_serve: ServeMock,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Test pairing aborts when the server does not come back."""
-    mock_serve.exit_immediately = True
-    with patch("homeassistant.components.tailcat.server._RESTART_DELAY_INITIAL", 3600):
-        result = await _start_pairing(hass, init_integration)
-        await hass.async_block_till_done()
-    assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "server_not_running"
-    assert init_integration.runtime_data.pending_keys == set()
-    assert ADDRESS not in caplog.text
-    await hass.config_entries.async_unload(init_integration.entry_id)
-
-
-@pytest.mark.usefixtures("mock_genkey")
 async def test_pair_device_without_address(
-    hass: HomeAssistant, init_integration: MockConfigEntry
+    hass: HomeAssistant, init_integration: MockConfigEntry, mock_genkey: GenkeyMock
 ) -> None:
     """Test pairing aborts while the server has no address."""
-    with patch.object(
-        init_integration.runtime_data.server,
-        "async_update_allowed_keys",
-        AsyncMock(),
-    ):
-        init_integration.runtime_data.server.address = None
-        result = await _start_pairing(hass, init_integration)
+    init_integration.runtime_data.server.address = None
+    result = await _start_pairing(hass, init_integration)
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "server_not_running"
+    assert mock_genkey.calls == []
 
 
 @pytest.mark.usefixtures("mock_which")

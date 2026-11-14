@@ -15,8 +15,7 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: TailcatConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    data = entry.runtime_data
-    server = data.server
+    server = entry.runtime_data.server
     return {
         "entry_data": async_redact_data(entry.data, TO_REDACT),
         "devices": [
@@ -28,6 +27,5 @@ async def async_get_config_entry_diagnostics(
             "has_address": server.address is not None,
             "port": server.port,
             "allowed_devices": len(server.allowed_keys),
-            "pending_devices": len(data.pending_keys),
         },
     }

@@ -14,7 +14,6 @@
     'server': dict({
       'allowed_devices': 1,
       'has_address': True,
-      'pending_devices': 0,
       'port': 18123,
       'running': True,
     }),

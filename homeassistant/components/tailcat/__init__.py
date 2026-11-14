@@ -4,9 +4,9 @@ import asyncio
 from dataclasses import dataclass
 import logging
 
-from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 
 from .const import CONF_PUBLIC_KEY, CONF_SERVER_KEY, CONF_TUNNEL_PORT, DOMAIN
@@ -25,13 +25,6 @@ class TailcatData:
     binary: str
     server: TailcatServer
     listener: asyncio.Server
-    # Keys of devices being paired, allowed while their pairing flow runs
-    pending_keys: set[str]
-
-
-async def async_update_allowed_keys(entry: TailcatConfigEntry) -> None:
-    """Apply the current set of paired and pending devices to the server."""
-    await entry.runtime_data.server.async_update_allowed_keys()
 
 
 async def _async_start_listener(
@@ -69,13 +62,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: TailcatConfigEntry) -> N
         )
 
     listener = await _async_start_listener(hass, entry)
-    pending_keys: set[str] = set()
 
     def _allowed_keys() -> set[str]:
-        """Return the public keys of all paired and pending devices."""
+        """Return the public keys of all paired devices."""
         return {
             subentry.data[CONF_PUBLIC_KEY] for subentry in entry.subentries.values()
-        } | pending_keys
+        }
 
     server = TailcatServer(
         hass,
@@ -92,9 +84,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TailcatConfigEntry) -> N
             translation_domain=DOMAIN, translation_key="server_not_started"
         ) from err
 
-    entry.runtime_data = TailcatData(
-        binary=binary, server=server, listener=listener, pending_keys=pending_keys
-    )
+    entry.runtime_data = TailcatData(binary=binary, server=server, listener=listener)
 
     async def _async_stop(event: Event) -> None:
         """Stop the server when Home Assistant stops."""
@@ -111,22 +101,9 @@ async def _async_update_listener(
 ) -> None:
     """Apply paired or removed devices."""
     try:
-        await async_update_allowed_keys(entry)
+        await entry.runtime_data.server.async_update_allowed_keys()
     except TailcatServerStartError as err:
         _LOGGER.warning("Tailcat server did not restart: %s", err)
-
-
-@callback
-def async_drop_pending_key(
-    hass: HomeAssistant, entry: TailcatConfigEntry, public_key: str
-) -> None:
-    """Stop allowing a device whose pairing ended."""
-    if entry.state is not ConfigEntryState.LOADED:
-        return
-    entry.runtime_data.pending_keys.discard(public_key)
-    entry.async_create_background_task(
-        hass, _async_update_listener(hass, entry), "Tailcat allowlist update"
-    )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: TailcatConfigEntry) -> None:

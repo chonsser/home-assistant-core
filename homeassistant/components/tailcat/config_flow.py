@@ -20,7 +20,7 @@ from homeassistant.helpers.selector import (
     QrErrorCorrectionLevel,
 )
 
-from . import TailcatConfigEntry, async_drop_pending_key, async_update_allowed_keys
+from . import TailcatConfigEntry
 from .const import (
     CONF_PUBLIC_KEY,
     CONF_SERVER_KEY,
@@ -28,7 +28,6 @@ from .const import (
     DOMAIN,
     SUBENTRY_TYPE_DEVICE,
 )
-from .server import TailcatServerStartError
 from .util import (
     TailcatKeyError,
     async_find_binary,
@@ -91,7 +90,7 @@ class DeviceSubentryFlowHandler(ConfigSubentryFlow):
 
     _name: str
     _pairing_url: str
-    _public_key: str | None = None
+    _public_key: str
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -106,22 +105,17 @@ class DeviceSubentryFlowHandler(ConfigSubentryFlow):
             )
 
         data = entry.runtime_data
+        if (address := data.server.address) is None:
+            return self.async_abort(reason="server_not_running")
         try:
             client_key = await async_generate_client_key(self.hass, data.binary)
         except TailcatKeyError:
             _LOGGER.exception("Generating a tailcat client key failed")
             return self.async_abort(reason="key_generation_failed")
 
-        # Allow the device right away, so it can connect while the code shows
+        # Allowed only once submitted: the restart this needs would cut off a
+        # client showing this flow through the tunnel
         self._public_key = client_key.public_key
-        data.pending_keys.add(client_key.public_key)
-        try:
-            await async_update_allowed_keys(entry)
-        except TailcatServerStartError:
-            return self.async_abort(reason="server_not_running")
-        if (address := data.server.address) is None:
-            return self.async_abort(reason="server_not_running")
-
         self._name = user_input[CONF_NAME]
         self._pairing_url = build_pairing_url(
             address,
@@ -134,9 +128,8 @@ class DeviceSubentryFlowHandler(ConfigSubentryFlow):
     async def async_step_pair(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Show the pairing code and add the device once confirmed."""
+        """Show the pairing code and allow the device once submitted."""
         if user_input is not None:
-            assert self._public_key is not None
             return self.async_create_entry(
                 title=self._name,
                 data={CONF_NAME: self._name, CONF_PUBLIC_KEY: self._public_key},
@@ -161,15 +154,3 @@ class DeviceSubentryFlowHandler(ConfigSubentryFlow):
                 "pairing_url": self._pairing_url,
             },
         )
-
-    @callback
-    @override
-    def async_remove(self) -> None:
-        """Stop allowing the pending key when the flow ends.
-
-        A paired device stays allowed through its subentry.
-        """
-        if self._public_key is not None and (
-            entry := self.hass.config_entries.async_get_entry(self.handler[0])
-        ):
-            async_drop_pending_key(self.hass, entry, self._public_key)
