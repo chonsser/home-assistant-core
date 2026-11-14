@@ -1,0 +1,15 @@
+{
+  "domain": "tailcat",
+  "name": "Tailcat",
+  "categories": ["computers_network.routers_network"],
+  "codeowners": ["@chonsser"],
+  "config_flow": true,
+  "connectivity": ["cloud"],
+  "dependencies": ["http"],
+  "documentation": "https://www.home-assistant.io/integrations/tailcat",
+  "integration_type": "service",
+  "iot_class": "cloud_push",
+  "quality_scale": "bronze",
+  "requirements": [],
+  "single_config_entry": true
+}

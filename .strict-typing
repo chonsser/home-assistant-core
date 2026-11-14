@@ -625,6 +625,7 @@ homeassistant.components.system_log.*
 homeassistant.components.systemmonitor.*
 homeassistant.components.systemnexa2.*
 homeassistant.components.tag.*
+homeassistant.components.tailcat.*
 homeassistant.components.tailscale.*
 homeassistant.components.tailwind.*
 homeassistant.components.tami4.*

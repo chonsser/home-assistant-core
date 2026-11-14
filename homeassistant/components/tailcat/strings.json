@@ -1,0 +1,56 @@
+{
+  "config": {
+    "abort": {
+      "binary_not_found": "The `tailcat` program was not found. Install it and make sure it is on the `PATH` of Home Assistant.",
+      "key_generation_failed": "Generating the Tailcat server key failed. Check the logs for details.",
+      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    },
+    "step": {
+      "user": {
+        "description": "Tailcat gives the devices you pair access to Home Assistant from anywhere through an encrypted tunnel, without port forwarding or an account. Only paired devices can connect.\n\nDo you want to set it up?"
+      }
+    }
+  },
+  "config_subentries": {
+    "device": {
+      "abort": {
+        "key_generation_failed": "Generating a key for the device failed. Check the logs for details.",
+        "not_loaded": "Tailcat is not running. Make sure it is set up correctly before pairing a device.",
+        "server_not_running": "The Tailcat server is not running. Check the logs for details and try again."
+      },
+      "entry_type": "Device",
+      "initiate_flow": {
+        "user": "Pair device"
+      },
+      "step": {
+        "pair": {
+          "data": {
+            "qr_code": "Pairing code"
+          },
+          "description": "Scan this code with the Home Assistant app on {name}, then select **Submit** to keep the device paired. Closing this dialog without submitting cancels the pairing.\n\nIf you cannot scan the code, open this link on the device. Keep it secret, it grants access to Home Assistant:\n\n`{pairing_url}`",
+          "title": "Scan the pairing code"
+        },
+        "user": {
+          "data": {
+            "name": "[%key:common::config_flow::data::name%]"
+          },
+          "data_description": {
+            "name": "A name to recognize the device by, for example the name of your phone."
+          },
+          "title": "Pair a device"
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "binary_not_found": {
+      "message": "The `tailcat` program was not found on the `PATH`."
+    },
+    "http_not_running": {
+      "message": "The Home Assistant HTTP server is not running yet."
+    },
+    "server_not_started": {
+      "message": "The Tailcat server did not start."
+    }
+  }
+}
