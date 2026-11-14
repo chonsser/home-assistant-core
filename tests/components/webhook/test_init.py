@@ -272,7 +272,7 @@ async def test_webhook_local_only(hass: HomeAssistant, mock_client) -> None:
 
     # Request over a local tunnel listener
     with patch(
-        "homeassistant.helpers.network.is_tunnel_request",
+        "homeassistant.components.webhook.is_tunnel_request",
         Mock(get=Mock(return_value=True)),
     ):
         resp = await mock_client.post(f"/api/webhook/{webhook_id}", json={"data": True})

@@ -93,7 +93,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.network import (
     NoURLAvailableError,
     get_url,
-    is_remote_tunnel_connection,
+    is_cloud_connection,
+    is_tunnel_request,
 )
 from homeassistant.util.network import is_local
 
@@ -213,7 +214,8 @@ class AuthProvidersView(HomeAssistantView):
                 message_code="invalid_remote_ip",
             )
 
-        remote_tunnel = is_remote_tunnel_connection(hass)
+        cloud_connection = is_cloud_connection(hass)
+        tunnel_request = is_tunnel_request.get()
         context = AuthFlowContext(ip_address=remote_address)
 
         providers = [
@@ -226,7 +228,9 @@ class AuthProvidersView(HomeAssistantView):
             if provider.async_can_start_login(context)
         ]
 
-        preselect_remember_me = not remote_tunnel and is_local(remote_address)
+        preselect_remember_me = (
+            not cloud_connection and not tunnel_request and is_local(remote_address)
+        )
 
         return self.json(
             {

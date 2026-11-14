@@ -381,13 +381,3 @@ def is_cloud_connection(hass: HomeAssistant) -> bool:
         return False
 
     return remote.is_cloud_request.get()
-
-
-def is_remote_tunnel_connection(hass: HomeAssistant) -> bool:
-    """Return True if the current connection arrived over a remote tunnel.
-
-    This covers Home Assistant Cloud and local tunnel listeners. The peer
-    address of such a request does not tell where the client really is, so
-    it must never be treated as local.
-    """
-    return is_tunnel_request.get() or is_cloud_connection(hass)

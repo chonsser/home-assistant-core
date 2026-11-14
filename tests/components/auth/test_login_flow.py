@@ -89,9 +89,16 @@ async def test_fetch_auth_providers_tunnel(
         [{"type": "homeassistant"}, {**_TRUSTED_NETWORKS_CONFIG}],
         custom_ip="192.168.0.1",
     )
-    with patch(
-        "homeassistant.helpers.network.is_tunnel_request",
-        Mock(get=Mock(return_value=True)),
+    tunnel_request = Mock(get=Mock(return_value=True))
+    with (
+        patch(
+            "homeassistant.components.auth.login_flow.is_tunnel_request",
+            tunnel_request,
+        ),
+        patch(
+            "homeassistant.auth.providers.trusted_networks.is_tunnel_request",
+            tunnel_request,
+        ),
     ):
         resp = await client.get("/auth/providers")
     assert resp.status == HTTPStatus.OK

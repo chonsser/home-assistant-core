@@ -763,7 +763,7 @@ async def test_async_user_not_allowed_do_auth(
 
     # Is tunnel request and local only, even a loopback IP will fail
     with patch(
-        "homeassistant.helpers.network.is_tunnel_request",
+        "homeassistant.components.http.auth_util.is_tunnel_request",
         Mock(get=Mock(return_value=True)),
     ):
         assert (

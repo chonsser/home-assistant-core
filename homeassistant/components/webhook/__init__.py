@@ -18,7 +18,11 @@ from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.components.http.const import is_supervisor_unix_socket_request
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.network import get_url, is_remote_tunnel_connection
+from homeassistant.helpers.network import (
+    get_url,
+    is_cloud_connection,
+    is_tunnel_request,
+)
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import network as network_util
 from homeassistant.util.aiohttp import MockRequest, MockStreamReader, serialize_response
@@ -203,7 +207,11 @@ async def async_handle_webhook(
 
     # Requests over the Supervisor Unix socket are always local
     if webhook.local_only and not is_supervisor_request:
-        is_local = not (is_remote_tunnel_connection(hass) or request.remote is None)
+        is_local = not (
+            is_cloud_connection(hass)
+            or is_tunnel_request.get()
+            or request.remote is None
+        )
 
         if is_local:
             if TYPE_CHECKING:

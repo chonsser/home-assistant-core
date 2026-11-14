@@ -21,8 +21,6 @@ from homeassistant.helpers.network import (
     get_url,
     is_hass_url,
     is_internal_request,
-    is_remote_tunnel_connection,
-    is_tunnel_request,
 )
 
 
@@ -1189,20 +1187,3 @@ async def test_get_supervisor_network_url(hass: HomeAssistant) -> None:
     assert (
         get_supervisor_network_url(hass, allow_ssl=True) == "https://homeassistant:8123"
     )
-
-
-async def test_is_remote_tunnel_connection(hass: HomeAssistant) -> None:
-    """Test detecting connections over a remote tunnel."""
-    assert not is_remote_tunnel_connection(hass)
-
-    token = is_tunnel_request.set(True)
-    try:
-        assert is_remote_tunnel_connection(hass)
-    finally:
-        is_tunnel_request.reset(token)
-
-    hass.config.components.add("cloud")
-    with patch(
-        "hass_nabucasa.remote.is_cloud_request", Mock(get=Mock(return_value=True))
-    ):
-        assert is_remote_tunnel_connection(hass)
